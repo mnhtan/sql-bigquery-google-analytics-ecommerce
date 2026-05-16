@@ -20,6 +20,16 @@ References:
 
 ---
 
+## 🔗 BigQuery Shared Query
+
+You can view the shared BigQuery query here:
+
+```text
+https://console.cloud.google.com/bigquery?sq=220399589420:3bbe1a06bc394593ba67ee2c28c116ef
+```
+
+---
+
 ## 🛠️ Tools & Technologies
 
 - Google BigQuery
@@ -38,7 +48,7 @@ References:
 ```text
 .
 ├── README.md
-└── ecommerce_bigquery.sql
+└── ecommerce_bigquery_queries_updated.sql
 ```
 
 ---
@@ -443,7 +453,7 @@ This project demonstrates the ability to:
 3. Open the SQL file:
 
 ```text
-ecommerce_bigquery_queries_updated.sql
+ecommerce_bigquery.sql
 ```
 
 4. Run each query separately.
@@ -479,10 +489,4 @@ GitHub: [mnhtan](https://github.com/mnhtan)
 
 ---
 
-## 📎 Repository Name Suggestion
 
-Recommended repository name:
-
-```text
-google-analytics-ecommerce-sql-bigquery
-```

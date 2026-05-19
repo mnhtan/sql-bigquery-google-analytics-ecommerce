@@ -1,492 +1,403 @@
-# Google Analytics Ecommerce Analysis with BigQuery SQL
+# 🛒 Google Analytics Ecommerce Analysis | BigQuery SQL
 
-## 📌 Project Overview
+![Project Cover](image/cover.png)
 
-This project analyzes ecommerce performance using the public **Google Analytics Sample Dataset** on **Google BigQuery**.
-
-The project includes a set of SQL queries designed to answer common business questions related to website traffic, user behavior, revenue performance, conversion rate, product funnel, and cumulative revenue.
-
-The SQL code was updated based on coach feedback to improve query structure, date formatting, join logic, and handling of nested fields using `UNNEST`.
-
-Dataset used:
-
-```sql
-bigquery-public-data.google_analytics_sample.ga_sessions_*
-```
-
-References:
-- Google Analytics BigQuery Export Schema: https://support.google.com/analytics/answer/3437719?hl=en
-- BigQuery Format Elements: https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements
+**Author:** Phan Minh Tan  
+**Tools Used:** BigQuery, SQL, Google Analytics Sample Dataset  
+**Dataset:** `bigquery-public-data.google_analytics_sample`
 
 ---
 
-## 🔗 BigQuery Shared Query
+## 📑 Table of Contents
 
-You can view the shared BigQuery query here:
-
-```text
-https://console.cloud.google.com/bigquery?sq=220399589420:3bbe1a06bc394593ba67ee2c28c116ef
-```
-
----
-
-## 🛠️ Tools & Technologies
-
-- Google BigQuery
-- Standard SQL
-- Google Analytics Sample Dataset
-- Date Functions
-- Aggregation Functions
-- Window Functions
-- Common Table Expressions
-- UNNEST for nested and repeated fields
+1. [📌 Background & Overview](#-background--overview)
+2. [📂 Dataset Description](#-dataset-description)
+3. [⚒️ Analysis Process](#️-analysis-process)
+4. [📌 Key Insights](#-key-insights)
+5. [🔎 Final Conclusion & Recommendations](#-final-conclusion--recommendations)
+6. [🧠 What I Learned](#-what-i-learned)
+7. [📁 Repository Structure](#-repository-structure)
 
 ---
 
-## 📂 Repository Structure
+## 📌 Background & Overview
 
-```text
-.
-├── README.md
-└── ecommerce_bigquery_queries_updated.sql
-```
+### 📖 What is this project about?
 
----
+This project uses **BigQuery SQL** to analyze ecommerce website performance from the **Google Analytics Sample Dataset**.  
+The analysis focuses on traffic, engagement, revenue, purchaser behavior, device contribution, product funnel performance, and cumulative revenue growth.
 
-## 🎯 Project Objectives
+The goal is to answer key business questions such as:
 
-The main objectives of this project are to:
+- How did website traffic, pageviews, transactions, and revenue change over time?
+- Which traffic sources generated visits, revenue, bounce rate, and conversion rate?
+- How do purchasers and non-purchasers behave differently?
+- Which devices contributed the most revenue?
+- What products are commonly purchased together?
+- Where do users drop off in the product funnel?
+- How does revenue accumulate weekly over time?
 
-- Practice SQL querying on nested Google Analytics data.
-- Analyze ecommerce website traffic and sales performance.
-- Calculate business metrics such as bounce rate, conversion rate, revenue contribution, and cumulative revenue.
-- Understand purchaser and non-purchaser behavior.
-- Build product funnel analysis from product view to add to cart to purchase.
-- Apply clean SQL structure using CTEs, joins, date functions, and window functions.
+### 👤 Who is this project for?
 
----
+- Data Analysts and Business Analysts
+- Ecommerce Managers
+- Digital Marketing Teams
+- BI Teams
+- Stakeholders who monitor website and purchase performance
 
-## 📊 Business Questions
+### 🎯 Project Outcome
 
-### Query 01: Monthly Website Performance
+This project delivers a set of **10 BigQuery SQL queries** that help analyze:
 
-Calculate total visits, pageviews, and transactions for **January, February, and March 2017**.
-
-Output columns:
-
-```text
-month | visits | pageviews | transactions
-```
-
-Key update:
-- Month is formatted as `YYYYMM` using `FORMAT_DATE()` to match the expected output format.
-
----
-
-### Query 02: Bounce Rate by Traffic Source
-
-Calculate bounce rate per traffic source in **July 2017**.
-
-Formula:
-
-```text
-Bounce Rate = Total Bounces / Total Visits * 100
-```
-
-Output columns:
-
-```text
-source | total_visits | total_no_of_bounces | bounce_rate
-```
-
-Purpose:
-- Identify which traffic sources have high bounce rates.
-- Evaluate traffic quality by acquisition source.
+- Monthly website performance
+- Bounce rate by traffic source
+- Revenue by traffic source
+- Conversion rate by traffic source
+- Purchaser vs non-purchaser behavior
+- Average transactions per purchasing user
+- Revenue contribution by device
+- Cross-selling opportunities
+- Product funnel conversion from view to add-to-cart to purchase
+- Weekly cumulative revenue
 
 ---
 
-### Query 03: Revenue by Traffic Source by Month and Week
+## 📂 Dataset Description
 
-Calculate revenue by traffic source in **June 2017**, grouped by both month and week.
+### 📌 Data Source
 
-Formula:
+The dataset comes from the public **Google Analytics Sample Dataset** in BigQuery.
 
-```text
-Revenue = SUM(productRevenue) / 1,000,000
-```
+| Item | Description |
+|---|---|
+| Dataset | `bigquery-public-data.google_analytics_sample` |
+| Main Table Pattern | `ga_sessions_*` |
+| Platform | Google BigQuery |
+| Data Type | Google Analytics ecommerce session data |
+| Business Context | Google Merchandise Store ecommerce website |
 
-Output columns:
+### 📊 Dataset Structure
 
-```text
-time_type | time | source | revenue
-```
+The dataset contains session-level website activity with nested fields such as:
 
-Key updates:
-- Monthly and weekly revenue are separated into two CTEs.
-- `UNION ALL` is used to combine the results.
-- Date is formatted correctly using `FORMAT_DATE()`.
-- `ORDER BY` is placed after the final combined result.
+| Field Group | Description |
+|---|---|
+| `totals` | Session metrics such as visits, pageviews, transactions, bounces, and revenue |
+| `trafficSource` | Traffic source information such as source, medium, and campaign |
+| `device` | Device category used by visitors |
+| `hits` | Nested hit-level user interactions within each session |
+| `hits.product` | Nested product-level ecommerce actions and revenue |
+| `eCommerceAction` | Ecommerce journey actions such as product view, add-to-cart, and purchase |
 
----
+### 🧩 Important SQL Concepts Used
 
-### Query 04: Conversion Rate by Traffic Source
-
-Calculate conversion rate by traffic source in **2017**.
-
-Formula:
-
-```text
-Conversion Rate = Transactions / Visits * 100
-```
-
-Output columns:
-
-```text
-source | visits | transactions | conversion_rate
-```
-
-Business logic:
-- Only traffic sources with at least **50 transactions** are included.
-- This helps reduce noise from sources with very low transaction volume.
+- `UNNEST()` to work with nested and repeated fields
+- `PARSE_DATE()` and `FORMAT_DATE()` for date transformation
+- Common Table Expressions / CTEs
+- Aggregation with `SUM()`, `COUNT()`, and `COUNT(DISTINCT)`
+- Conditional filtering with `WHERE`
+- `JOIN`, `FULL JOIN`, and subqueries
+- `SAFE_DIVIDE()` to avoid division errors
+- Window functions for ratio and cumulative revenue calculation
+- Funnel rate calculation
+- Revenue conversion from micros to standard currency format
 
 ---
 
-### Query 05: Average Pageviews by Purchaser Type
+## ⚒️ Analysis Process
 
-Compare average pageviews between purchasers and non-purchasers in **June and July 2017**.
+### 1️⃣ Monthly Website Performance
 
-Formula:
+**Business Question:**  
+How did visits, pageviews, and transactions perform across January, February, and March 2017?
 
-```text
-Average Pageviews = Total Pageviews / Number of Unique Users
-```
+**SQL Query**
 
-Output columns:
+![Monthly Website Performance Query](image/query/01_monthly_website_performance_query.png)
 
-```text
-month | avg_pageviews_purchase | avg_pageviews_non_purchase
-```
+**Query Result**
 
-Key updates:
-- Purchasers and non-purchasers are separated into two CTEs.
-- `FULL JOIN` is used to avoid losing data when one group is missing in a specific month.
-- This makes the query easier to debug and reduces logic errors.
+![Monthly Website Performance Result](image/result/01_monthly_website_performance_result.png)
 
-Purchaser condition:
+**Key Finding**
 
-```sql
-totals.transactions >= 1
-AND product.productRevenue IS NOT NULL
-```
-
-Non-purchaser condition:
-
-```sql
-totals.transactions IS NULL
-AND product.productRevenue IS NULL
-```
+- Monthly traffic and transaction metrics help monitor overall ecommerce website performance over time.
 
 ---
 
-### Query 06: Average Transactions per Purchasing User
+### 2️⃣ Bounce Rate by Traffic Source
 
-Calculate the average number of transactions per purchasing user in **July 2017**.
+**Business Question:**  
+Which traffic sources bring users with low engagement or high bounce behavior?
 
-Formula:
+**SQL Query**
 
-```text
-Average Transactions per Purchasing User = Total Transactions / Number of Unique Purchasing Users
-```
+![Bounce Rate by Traffic Source Query](image/query/02_bounce_rate_by_traffic_source_query.png)
 
-Output columns:
+**Query Result**
 
-```text
-month | avg_total_transactions_per_user
-```
+![Bounce Rate by Traffic Source Result](image/result/02_bounce_rate_by_traffic_source_result.png)
 
-Purpose:
-- Understand how frequently purchasing users complete transactions.
+**Key Finding**
+
+- Bounce rate helps evaluate traffic quality, not only traffic volume.
 
 ---
 
-### Query 07: Revenue Contribution by Device
+### 3️⃣ Revenue by Traffic Source
 
-Calculate revenue contribution by device category in **2017**.
+**Business Question:**  
+Which traffic sources generated the most revenue in June 2017 by week and by month?
 
-Formula:
+**SQL Query**
 
-```text
-Revenue Ratio = Revenue by Device / Total Revenue * 100
-```
+![Revenue by Traffic Source Query](image/query/03_revenue_by_traffic_source_query.png)
 
-Output columns:
+**Query Result**
 
-```text
-device | revenue_by_device | total_revenue | ratio
-```
+![Revenue by Traffic Source Result](image/result/03_revenue_by_traffic_source_result.png)
 
-Purpose:
-- Identify which device category contributes the most revenue.
-- Compare revenue performance across desktop, mobile, and tablet.
+**Key Finding**
+
+- Revenue by source helps identify which acquisition channels contribute most to ecommerce performance.
 
 ---
 
-### Query 08: Other Products Purchased Together
+### 4️⃣ Conversion Rate by Traffic Source
 
-Find other products purchased by customers who bought:
+**Business Question:**  
+Which traffic sources convert visits into transactions most effectively?
 
-```text
-YouTube Men's Vintage Henley
-```
+**SQL Query**
 
-Time period:
-- July 2017
+![Conversion Rate by Traffic Source Query](image/query/04_conversion_rate_by_traffic_source_query.png)
 
-Output columns:
+**Query Result**
 
-```text
-other_purchased_products | quantity
-```
+![Conversion Rate by Traffic Source Result](image/result/04_conversion_rate_by_traffic_source_result.png)
 
-Key update:
-- A CTE is used to identify customers who purchased the target product.
-- `INNER JOIN` is used to find other products purchased by the same customers.
-- The target product is excluded from the final result.
+**Key Finding**
+
+- Conversion rate shows traffic effectiveness by comparing transactions against total visits.
 
 ---
 
-### Query 09: Product Funnel Analysis
+### 5️⃣ Purchaser vs Non-Purchaser Pageviews
 
-Calculate the product funnel from product view to add to cart to purchase for **January, February, and March 2017**.
+**Business Question:**  
+Do purchasers view more pages than non-purchasers?
 
-Funnel action types:
+**SQL Query**
+
+![Average Pageviews by Purchaser Type Query](image/query/05_avg_pageviews_by_purchaser_type_query.png)
+
+**Query Result**
+
+![Average Pageviews by Purchaser Type Result](image/result/05_avg_pageviews_by_purchaser_type_result.png)
+
+**Key Finding**
+
+- Comparing purchaser and non-purchaser behavior helps understand engagement differences before conversion.
+
+---
+
+### 6️⃣ Average Transactions per Purchasing User
+
+**Business Question:**  
+How many transactions does each purchasing user make on average in July 2017?
+
+**SQL Query**
+
+![Average Transactions per Purchasing User Query](image/query/06_avg_transactions_per_purchasing_user_query.png)
+
+**Query Result**
+
+![Average Transactions per Purchasing User Result](image/result/06_avg_transactions_per_purchasing_user_result.png)
+
+**Key Finding**
+
+- Average transactions per purchasing user helps evaluate purchase frequency and repeat buying behavior.
+
+---
+
+### 7️⃣ Revenue Contribution by Device
+
+**Business Question:**  
+Which device categories contributed the most ecommerce revenue in 2017?
+
+**SQL Query**
+
+![Revenue Contribution by Device Query](image/query/07_revenue_contribution_by_device_query.png)
+
+**Query Result**
+
+![Revenue Contribution by Device Result](image/result/07_revenue_contribution_by_device_result.png)
+
+**Key Finding**
+
+- Device revenue contribution helps evaluate where customers are generating the most business value.
+
+---
+
+### 8️⃣ Cross-Selling Product Analysis
+
+**Business Question:**  
+What other products were purchased by customers who bought **YouTube Men's Vintage Henley** in July 2017?
+
+**SQL Query**
+
+![Cross Selling Product Analysis Query](image/query/08_cross_selling_product_analysis_query.png)
+
+**Query Result**
+
+![Cross Selling Product Analysis Result](image/result/08_cross_selling_product_analysis_result.png)
+
+**Key Finding**
+
+- Product co-purchase analysis can support cross-selling, bundling, and recommendation strategies.
+
+---
+
+### 9️⃣ Product Funnel Analysis
+
+**Business Question:**  
+How do users move from product view to add-to-cart and purchase in January, February, and March 2017?
+
+**SQL Query**
+
+![Product Funnel Analysis Query](image/query/09_product_funnel_analysis_query.png)
+
+**Query Result**
+
+![Product Funnel Analysis Result](image/result/09_product_funnel_analysis_result.png)
+
+**Key Finding**
+
+- Funnel analysis helps identify where users drop off before completing a purchase.
+
+---
+
+### 🔟 Weekly Cumulative Revenue
+
+**Business Question:**  
+How did weekly revenue and cumulative revenue change from May to July 2017?
+
+**SQL Query**
+
+![Weekly Cumulative Revenue Query](image/query/10_weekly_cumulative_revenue_query.png)
+
+**Query Result**
+
+![Weekly Cumulative Revenue Result](image/result/10_weekly_cumulative_revenue_result.png)
+
+**Key Finding**
+
+- Weekly cumulative revenue helps track revenue growth momentum over time.
+
+---
+
+## 📌 Key Insights
+
+- Website performance can be monitored through visits, pageviews, transactions, and revenue by time period.
+- Traffic sources should be evaluated by both volume and quality because high visits do not always mean high engagement or high conversion.
+- Revenue by source and conversion rate by source help identify which channels contribute most to ecommerce outcomes.
+- Purchasers and non-purchasers show different browsing behavior, which can support segmentation and remarketing strategy.
+- Device-level revenue contribution helps understand which platforms generate the most value.
+- Cross-selling analysis can reveal product combinations that are useful for recommendation campaigns.
+- Funnel analysis helps identify where users drop off before completing a purchase.
+- Cumulative revenue analysis helps track revenue growth over time.
+
+---
+
+## 🔎 Final Conclusion & Recommendations
+
+| Area | Insight | Recommendation |
+|---|---|---|
+| Traffic Performance | Website traffic should be tracked together with pageviews, transactions, and revenue. | Monitor monthly performance to detect growth or decline early. |
+| Traffic Source Quality | Some sources may generate many visits but also high bounce rates or weak conversion. | Optimize landing pages and messaging for low-quality traffic sources. |
+| Revenue Contribution | Revenue varies by traffic source, time period, and device category. | Focus marketing effort on sources and devices that generate stronger revenue contribution. |
+| Conversion Performance | Conversion rate shows which sources turn visits into transactions more effectively. | Prioritize channels with strong conversion rate and investigate sources with weak conversion. |
+| Purchaser Behavior | Purchasers and non-purchasers can behave differently in pageview and transaction patterns. | Use behavioral differences to improve segmentation and remarketing. |
+| Cross-Selling | Customers who buy one product may also purchase related products. | Use product pairing insights to create recommendation or bundle strategies. |
+| Funnel Conversion | Users may drop off between product view, add-to-cart, and purchase. | Improve product pages, checkout flow, and promotional triggers to increase conversion rate. |
+| Revenue Growth | Weekly cumulative revenue helps show how revenue builds over time. | Track cumulative revenue to evaluate business momentum and campaign impact. |
+
+---
+
+## 🧠 What I Learned
+
+Through this project, I practiced how to:
+
+- Query nested Google Analytics data in BigQuery using `UNNEST()`.
+- Transform date fields and aggregate metrics by month and week.
+- Calculate ecommerce metrics such as visits, pageviews, transactions, bounce rate, revenue, conversion rate, and funnel rates.
+- Compare purchaser and non-purchaser behavior using SQL.
+- Analyze revenue contribution by traffic source and device category.
+- Build funnel analysis from product view to add-to-cart to purchase.
+- Use window functions to calculate total contribution and cumulative revenue.
+- Translate business questions into SQL logic and analytical outputs.
+
+---
+
+## 📁 Repository Structure
 
 ```text
-2 = Product view
-3 = Add to cart
-6 = Purchase
-```
-
-Formulas:
-
-```text
-Add to Cart Rate = Number of Add to Cart Products / Number of Product Views * 100
-Purchase Rate = Number of Purchased Products / Number of Product Views * 100
-```
-
-Output columns:
-
-```text
-month | num_product_view | num_addtocart | num_purchase | add_to_cart_rate | purchase_rate
-```
-
-Key updates:
-- Product actions are counted using `product.productSKU`.
-- The query is split into three CTEs:
-  - `product_view`
-  - `add_to_cart`
-  - `purchase`
-- `LEFT JOIN` is used with product view as the base table to avoid losing product view records when add-to-cart or purchase data is missing.
-- Purchase records are filtered with `product.productRevenue IS NOT NULL`.
-
----
-
-### Query 10: Weekly Revenue and Cumulative Revenue
-
-Calculate weekly revenue and cumulative revenue from **May to July 2017**.
-
-Formula:
-
-```text
-Cumulative Revenue = SUM(Weekly Revenue) OVER (ORDER BY Week)
-```
-
-Output columns:
-
-```text
-week | weekly_revenue | cumulative_revenue
-```
-
-Key update:
-- Window function is used with an explicit window frame:
-
-```sql
-ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-```
-
-Purpose:
-- Track weekly revenue growth over time.
-- Understand year-to-date style cumulative performance for the selected period.
-
----
-
-## 🔍 Key SQL Concepts Applied
-
-### 1. Date Parsing and Formatting
-
-The dataset stores date as a string in `YYYYMMDD` format.  
-The project uses `PARSE_DATE()` and `FORMAT_DATE()` to convert and format dates.
-
-Example:
-
-```sql
-FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS month
-```
-
----
-
-### 2. Filtering Tables with `_TABLE_SUFFIX`
-
-The Google Analytics dataset is split into multiple daily tables.  
-`_TABLE_SUFFIX` is used to filter specific date ranges.
-
-Example:
-
-```sql
-WHERE _TABLE_SUFFIX BETWEEN '0101' AND '0331'
-```
-
-For wildcard tables across years:
-
-```sql
-WHERE _TABLE_SUFFIX BETWEEN '20170101' AND '20170331'
-```
-
----
-
-### 3. Working with Nested Data using `UNNEST`
-
-Google Analytics data contains nested and repeated fields such as `hits` and `hits.product`.
-
-To access product-level fields, the query must use `UNNEST`.
-
-Example:
-
-```sql
-FROM `bigquery-public-data.google_analytics_sample.ga_sessions_2017*`,
-  UNNEST(hits) AS hits,
-  UNNEST(hits.product) AS product
-```
-
-Product-level fields used in this project include:
-
-```text
-product.productRevenue
-product.productQuantity
-product.v2ProductName
-product.productSKU
-```
-
----
-
-### 4. Common Table Expressions
-
-CTEs are used to break complex queries into smaller and easier-to-control steps.
-
-Example:
-
-```sql
-WITH purchaser_data AS (...),
-non_purchaser_data AS (...)
-SELECT ...
-```
-
-This improves readability and makes debugging easier.
-
----
-
-### 5. Joins
-
-The project applies different join types depending on the business logic:
-
-- `FULL JOIN`: used when both groups should be preserved.
-- `LEFT JOIN`: used when product view is the base of funnel analysis.
-- `INNER JOIN`: used when finding products purchased by a specific customer group.
-
----
-
-### 6. Safe Division
-
-`SAFE_DIVIDE()` is used to avoid division errors when the denominator may be zero.
-
-Example:
-
-```sql
-SAFE_DIVIDE(SUM(totals.bounces), SUM(totals.visits))
+google-analytics-ecommerce-sql-bigquery/
+│
+├── query/
+│   ├── 01_monthly_website_performance.sql
+│   ├── 02_bounce_rate_by_traffic_source.sql
+│   ├── 03_revenue_by_traffic_source.sql
+│   ├── 04_conversion_rate_by_traffic_source.sql
+│   ├── 05_avg_pageviews_by_purchaser_type.sql
+│   ├── 06_avg_transactions_per_purchasing_user.sql
+│   ├── 07_revenue_contribution_by_device.sql
+│   ├── 08_cross_selling_product_analysis.sql
+│   ├── 09_product_funnel_analysis.sql
+│   └── 10_weekly_cumulative_revenue.sql
+│
+├── image/
+│   ├── cover.png
+│   ├── query/
+│   │   ├── 01_monthly_website_performance_query.png
+│   │   ├── 02_bounce_rate_by_traffic_source_query.png
+│   │   ├── 03_revenue_by_traffic_source_query.png
+│   │   ├── 04_conversion_rate_by_traffic_source_query.png
+│   │   ├── 05_avg_pageviews_by_purchaser_type_query.png
+│   │   ├── 06_avg_transactions_per_purchasing_user_query.png
+│   │   ├── 07_revenue_contribution_by_device_query.png
+│   │   ├── 08_cross_selling_product_analysis_query.png
+│   │   ├── 09_product_funnel_analysis_query.png
+│   │   └── 10_weekly_cumulative_revenue_query.png
+│   │
+│   └── result/
+│       ├── 01_monthly_website_performance_result.png
+│       ├── 02_bounce_rate_by_traffic_source_result.png
+│       ├── 03_revenue_by_traffic_source_result.png
+│       ├── 04_conversion_rate_by_traffic_source_result.png
+│       ├── 05_avg_pageviews_by_purchaser_type_result.png
+│       ├── 06_avg_transactions_per_purchasing_user_result.png
+│       ├── 07_revenue_contribution_by_device_result.png
+│       ├── 08_cross_selling_product_analysis_result.png
+│       ├── 09_product_funnel_analysis_result.png
+│       └── 10_weekly_cumulative_revenue_result.png
+│
+└── README.md
 ```
 
 ---
 
-### 7. Window Functions
-
-Window functions are used to calculate cumulative revenue.
-
-Example:
-
-```sql
-SUM(weekly_revenue) OVER (
-  ORDER BY week
-  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-)
-```
-
----
-
-## 📈 Project Outcomes
-
-This project demonstrates the ability to:
-
-- Query and analyze nested ecommerce data in BigQuery.
-- Translate business questions into SQL queries.
-- Calculate key ecommerce metrics such as visits, pageviews, bounce rate, conversion rate, revenue, and cumulative revenue.
-- Build purchaser behavior analysis.
-- Build product funnel analysis.
-- Use CTEs and joins to improve SQL readability and logic control.
-- Apply SQL best practices based on review feedback.
-
----
-
-## 🚀 How to Run
+## 🚀 How to Use
 
 1. Open Google BigQuery.
-2. Make sure Standard SQL mode is enabled.
-3. Open the SQL file:
-
-```text
-ecommerce_bigquery.sql
-```
-
-4. Run each query separately.
-5. Review the output and compare it with the expected business requirement.
-
----
-
-## 📌 Notes
-
-Revenue fields in Google Analytics BigQuery export are stored in micro-units.  
-Therefore, `product.productRevenue` is divided by `1,000,000`.
-
-Example:
-
-```sql
-SUM(product.productRevenue) / 1000000 AS revenue
-```
-
-For purchase-related queries, this condition is used to ensure valid purchase records:
-
-```sql
-product.productRevenue IS NOT NULL
-```
+2. Use the public dataset: `bigquery-public-data.google_analytics_sample`.
+3. Open each SQL file in the `query/` folder.
+4. Run the queries and review the result screenshots.
+5. Use the insights to understand ecommerce traffic, revenue, purchase behavior, device contribution, and funnel performance.
 
 ---
 
 ## 👤 Author
 
 **Phan Minh Tan**  
-Aspiring Data Analyst  
-
-GitHub: [mnhtan](https://github.com/mnhtan)
-
----
-
-
+Aspiring Data Analyst with interests in SQL, Power BI, Python, and business analytics.

@@ -54,34 +54,6 @@ The dataset comes from the public **Google Analytics Sample Dataset** in BigQuer
 | Data Type | Google Analytics ecommerce session data |
 | Business Context | Google Merchandise Store ecommerce website |
 
-### 📊 Dataset Structure
-
-The dataset contains session-level website activity with nested fields such as:
-
-| Field Group | Description |
-|---|---|
-| `totals` | Session metrics such as visits, pageviews, transactions, bounces, and revenue |
-| `trafficSource` | Traffic source information such as source, medium, and campaign |
-| `device` | Device category used by visitors |
-| `hits` | Nested hit-level user interactions within each session |
-| `hits.product` | Nested product-level ecommerce actions and revenue |
-| `eCommerceAction` | Ecommerce journey actions such as product view, add-to-cart, and purchase |
-
-### 🧩 Important SQL Concepts Used
-
-- `UNNEST()` to work with nested and repeated fields
-- `PARSE_DATE()` and `FORMAT_DATE()` for date transformation
-- Common Table Expressions / CTEs
-- Aggregation with `SUM()`, `COUNT()`, and `COUNT(DISTINCT)`
-- Conditional filtering with `WHERE`
-- `JOIN`, `FULL JOIN`, and subqueries
-- `SAFE_DIVIDE()` to avoid division errors
-- Window functions for ratio and cumulative revenue calculation
-- Funnel rate calculation
-- Revenue conversion from micros to standard currency format
-
----
-
 ---
 
 ## SQL Queries

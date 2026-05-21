@@ -37,28 +37,6 @@ The goal is to answer key business questions such as:
 - Where do users drop off in the product funnel?
 - How does revenue accumulate weekly over time?
 
-### 👤 Who is this project for?
-
-- Data Analysts and Business Analysts
-- Ecommerce Managers
-- Digital Marketing Teams
-- BI Teams
-- Stakeholders who monitor website and purchase performance
-
-### 🎯 Project Outcome
-
-This project delivers a set of **10 BigQuery SQL queries** that help analyze:
-
-- Monthly website performance
-- Bounce rate by traffic source
-- Revenue by traffic source
-- Conversion rate by traffic source
-- Purchaser vs non-purchaser behavior
-- Average transactions per purchasing user
-- Revenue contribution by device
-- Cross-selling opportunities
-- Product funnel conversion from view to add-to-cart to purchase
-- Weekly cumulative revenue
 
 ---
 
@@ -104,198 +82,477 @@ The dataset contains session-level website activity with nested fields such as:
 
 ---
 
-## ⚒️ Analysis Process
+---
 
-### 1️⃣ Monthly Website Performance
+## SQL Queries
 
-**Business Question:**  
-How did visits, pageviews, and transactions perform across January, February, and March 2017?
+---
 
-**SQL Query**
+## Query 01 — Monthly Website Performance
 
-![Monthly Website Performance Query](image/query/01_monthly_website_performance_query.png)
+**Business question:**  
+How many visits, pageviews, and transactions occurred in January, February, and March 2017?
 
-**Query Result**
+```sql
+-- ============================================================
+-- Query 01
+-- Calculate total visits, pageviews, and transactions
+-- for Jan, Feb, and Mar 2017.
+-- ============================================================
+
+SELECT
+  FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS month,
+  SUM(totals.visits) AS visits,
+  SUM(totals.pageviews) AS pageviews,
+  SUM(totals.transactions) AS transactions
+FROM `bigquery-public-data.google_analytics_sample.ga_sessions_2017*`
+WHERE _TABLE_SUFFIX BETWEEN '0101' AND '0331'
+GROUP BY 1
+ORDER BY 1;
+```
+
+**Result**
 
 ![Monthly Website Performance Result](image/result/01_monthly_website_performance_result.png)
 
-**Key Finding**
-
-- Monthly traffic and transaction metrics help monitor overall ecommerce website performance over time.
+**Why it matters:**  
+This query gives a high-level view of website performance over time.
 
 ---
 
-### 2️⃣ Bounce Rate by Traffic Source
+## Query 02 — Bounce Rate by Traffic Source
 
-**Business Question:**  
-Which traffic sources bring users with low engagement or high bounce behavior?
+**Business question:**  
+Which traffic sources had the highest bounce rate in July 2017?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 02
+-- Calculate bounce rate per traffic source in July 2017.
+-- Bounce rate = total bounces / total visits * 100
+-- ============================================================
 
-![Bounce Rate by Traffic Source Query](image/query/02_bounce_rate_by_traffic_source_query.png)
+SELECT
+  trafficSource.source AS source,
+  SUM(totals.visits) AS total_visits,
+  SUM(totals.bounces) AS total_no_of_bounces,
+  ROUND(SAFE_DIVIDE(SUM(totals.bounces), SUM(totals.visits)) * 100, 3) AS bounce_rate
+FROM `bigquery-public-data.google_analytics_sample.ga_sessions_201707*`
+GROUP BY 1
+ORDER BY total_visits DESC;
+```
 
-**Query Result**
+**Result**
 
 ![Bounce Rate by Traffic Source Result](image/result/02_bounce_rate_by_traffic_source_result.png)
 
-**Key Finding**
-
-- Bounce rate helps evaluate traffic quality, not only traffic volume.
+**Why it matters:**  
+Bounce rate helps evaluate traffic quality, not just traffic volume.
 
 ---
 
-### 3️⃣ Revenue by Traffic Source
+## Query 03 — Revenue by Traffic Source
 
-**Business Question:**  
-Which traffic sources generated the most revenue in June 2017 by week and by month?
+**Business question:**  
+Which traffic sources generated the most revenue by month and week?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 03
+-- Calculate revenue by traffic source by month and week.
+-- Revenue is converted from micros by dividing by 1,000,000.
+-- ============================================================
 
-![Revenue by Traffic Source Query](image/query/03_revenue_by_traffic_source_query.png)
+WITH month_data AS (
+  SELECT
+    'Month' AS time_type,
+    FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS time,
+    trafficSource.source AS source,
+    SUM(product.productRevenue) / 1000000 AS revenue
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_201706*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE product.productRevenue IS NOT NULL
+  GROUP BY 1, 2, 3
+),
 
-**Query Result**
+week_data AS (
+  SELECT
+    'Week' AS time_type,
+    FORMAT_DATE('%Y%W', PARSE_DATE('%Y%m%d', date)) AS time,
+    trafficSource.source AS source,
+    SUM(product.productRevenue) / 1000000 AS revenue
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_201706*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE product.productRevenue IS NOT NULL
+  GROUP BY 1, 2, 3
+)
+
+SELECT
+  time_type,
+  time,
+  source,
+  revenue
+FROM month_data
+
+UNION ALL
+
+SELECT
+  time_type,
+  time,
+  source,
+  revenue
+FROM week_data
+
+ORDER BY time_type, revenue DESC;
+```
+
+**Result**
 
 ![Revenue by Traffic Source Result](image/result/03_revenue_by_traffic_source_result.png)
 
-**Key Finding**
-
-- Revenue by source helps identify which acquisition channels contribute most to ecommerce performance.
+**Why it matters:**  
+Revenue by source helps identify acquisition channels that generate business value.
 
 ---
 
-### 4️⃣ Conversion Rate by Traffic Source
+## Query 04 — Conversion Rate by Traffic Source
 
-**Business Question:**  
-Which traffic sources convert visits into transactions most effectively?
+**Business question:**  
+Which traffic sources converted visits into transactions most effectively in 2017?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 04
+-- Calculate conversion rate by traffic source in 2017.
+-- Conversion rate = transactions / visits * 100
+-- Only include traffic sources with transactions >= 50.
+-- ============================================================
 
-![Conversion Rate by Traffic Source Query](image/query/04_conversion_rate_by_traffic_source_query.png)
+SELECT
+  trafficSource.source AS source,
+  SUM(totals.visits) AS visits,
+  SUM(totals.transactions) AS transactions,
+  ROUND(SAFE_DIVIDE(SUM(totals.transactions), SUM(totals.visits)) * 100, 2) AS conversion_rate
+FROM `bigquery-public-data.google_analytics_sample.ga_sessions_2017*`
+WHERE _TABLE_SUFFIX BETWEEN '0101' AND '1231'
+GROUP BY 1
+HAVING transactions >= 50
+ORDER BY conversion_rate DESC;
+```
 
-**Query Result**
+**Result**
 
 ![Conversion Rate by Traffic Source Result](image/result/04_conversion_rate_by_traffic_source_result.png)
 
-**Key Finding**
-
-- Conversion rate shows traffic effectiveness by comparing transactions against total visits.
+**Why it matters:**  
+Conversion rate shows how effectively each traffic source turns visits into purchases.
 
 ---
 
-### 5️⃣ Purchaser vs Non-Purchaser Pageviews
+## Query 05 — Average Pageviews by Purchaser Type
 
-**Business Question:**  
-Do purchasers view more pages than non-purchasers?
+**Business question:**  
+Do purchasers view more pages than non-purchasers in June and July 2017?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 05
+-- Calculate average number of pageviews by purchaser type
+-- in June and July 2017.
+-- Purchaser: totals.transactions >= 1 and productRevenue is not null
+-- Non-purchaser: totals.transactions is null and productRevenue is null
+-- ============================================================
 
-![Average Pageviews by Purchaser Type Query](image/query/05_avg_pageviews_by_purchaser_type_query.png)
+WITH purchaser_data AS (
+  SELECT
+    FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS month,
+    SUM(totals.pageviews) / COUNT(DISTINCT fullVisitorId) AS avg_pageviews_purchase
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_2017*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE _TABLE_SUFFIX BETWEEN '0601' AND '0731'
+    AND totals.transactions >= 1
+    AND product.productRevenue IS NOT NULL
+  GROUP BY 1
+),
 
-**Query Result**
+non_purchaser_data AS (
+  SELECT
+    FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS month,
+    SUM(totals.pageviews) / COUNT(DISTINCT fullVisitorId) AS avg_pageviews_non_purchase
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_2017*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE _TABLE_SUFFIX BETWEEN '0601' AND '0731'
+    AND totals.transactions IS NULL
+    AND product.productRevenue IS NULL
+  GROUP BY 1
+)
+
+SELECT
+  COALESCE(p.month, np.month) AS month,
+  p.avg_pageviews_purchase,
+  np.avg_pageviews_non_purchase
+FROM purchaser_data AS p
+FULL JOIN non_purchaser_data AS np
+USING (month)
+ORDER BY month;
+```
+
+**Result**
 
 ![Average Pageviews by Purchaser Type Result](image/result/05_avg_pageviews_by_purchaser_type_result.png)
 
-**Key Finding**
-
-- Comparing purchaser and non-purchaser behavior helps understand engagement differences before conversion.
+**Why it matters:**  
+This helps compare browsing engagement between converting and non-converting users.
 
 ---
 
-### 6️⃣ Average Transactions per Purchasing User
+## Query 06 — Average Transactions per Purchasing User
 
-**Business Question:**  
+**Business question:**  
 How many transactions does each purchasing user make on average in July 2017?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 06
+-- Calculate average number of transactions per purchasing user
+-- in July 2017.
+-- Average transactions per user = total transactions / unique purchasing users
+-- ============================================================
 
-![Average Transactions per Purchasing User Query](image/query/06_avg_transactions_per_purchasing_user_query.png)
+SELECT
+  FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS month,
+  SUM(totals.transactions) / COUNT(DISTINCT fullVisitorId) AS avg_total_transactions_per_user
+FROM `bigquery-public-data.google_analytics_sample.ga_sessions_201707*`,
+  UNNEST(hits) AS hits,
+  UNNEST(hits.product) AS product
+WHERE totals.transactions >= 1
+  AND product.productRevenue IS NOT NULL
+GROUP BY 1;
+```
 
-**Query Result**
+**Result**
 
 ![Average Transactions per Purchasing User Result](image/result/06_avg_transactions_per_purchasing_user_result.png)
 
-**Key Finding**
-
-- Average transactions per purchasing user helps evaluate purchase frequency and repeat buying behavior.
+**Why it matters:**  
+This metric helps understand purchase frequency among users who actually bought something.
 
 ---
 
-### 7️⃣ Revenue Contribution by Device
+## Query 07 — Revenue Contribution by Device
 
-**Business Question:**  
-Which device categories contributed the most ecommerce revenue in 2017?
+**Business question:**  
+Which device categories contributed the most revenue in 2017?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 07
+-- Calculate revenue contribution by device in 2017.
+-- Ratio = revenue by device / total revenue * 100
+-- ============================================================
 
-![Revenue Contribution by Device Query](image/query/07_revenue_contribution_by_device_query.png)
+WITH device_revenue AS (
+  SELECT
+    device.deviceCategory AS device,
+    SUM(product.productRevenue) / 1000000 AS revenue_by_device
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_2017*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE totals.transactions >= 1
+    AND product.productRevenue IS NOT NULL
+  GROUP BY 1
+)
 
-**Query Result**
+SELECT
+  device,
+  revenue_by_device,
+  SUM(revenue_by_device) OVER () AS total_revenue,
+  ROUND(SAFE_DIVIDE(revenue_by_device, SUM(revenue_by_device) OVER ()) * 100, 2) AS ratio
+FROM device_revenue
+ORDER BY ratio DESC;
+```
+
+**Result**
 
 ![Revenue Contribution by Device Result](image/result/07_revenue_contribution_by_device_result.png)
 
-**Key Finding**
-
-- Device revenue contribution helps evaluate where customers are generating the most business value.
+**Why it matters:**  
+Device-level revenue contribution helps identify where customers generate the most value.
 
 ---
 
-### 8️⃣ Cross-Selling Product Analysis
+## Query 08 — Cross-Selling Product Analysis
 
-**Business Question:**  
+**Business question:**  
 What other products were purchased by customers who bought **YouTube Men's Vintage Henley** in July 2017?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 08
+-- Find other products purchased by customers who purchased
+-- "YouTube Men's Vintage Henley" in July 2017.
+-- ============================================================
 
-![Cross Selling Product Analysis Query](image/query/08_cross_selling_product_analysis_query.png)
+WITH buyers_list AS (
+  SELECT DISTINCT
+    fullVisitorId
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_201707*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE product.v2ProductName = "YouTube Men's Vintage Henley"
+    AND product.productRevenue IS NOT NULL
+    AND totals.transactions >= 1
+)
 
-**Query Result**
+SELECT
+  product.v2ProductName AS other_purchased_products,
+  SUM(product.productQuantity) AS quantity
+FROM `bigquery-public-data.google_analytics_sample.ga_sessions_201707*`,
+  UNNEST(hits) AS hits,
+  UNNEST(hits.product) AS product
+INNER JOIN buyers_list AS buyers
+USING (fullVisitorId)
+WHERE product.v2ProductName != "YouTube Men's Vintage Henley"
+  AND product.productRevenue IS NOT NULL
+  AND totals.transactions >= 1
+GROUP BY 1
+ORDER BY quantity DESC;
+```
+
+**Result**
 
 ![Cross Selling Product Analysis Result](image/result/08_cross_selling_product_analysis_result.png)
 
-**Key Finding**
-
-- Product co-purchase analysis can support cross-selling, bundling, and recommendation strategies.
+**Why it matters:**  
+This query supports cross-selling, product bundling, and recommendation strategies.
 
 ---
 
-### 9️⃣ Product Funnel Analysis
+## Query 09 — Product Funnel Analysis
 
-**Business Question:**  
-How do users move from product view to add-to-cart and purchase in January, February, and March 2017?
+**Business question:**  
+How do users move from product view to add-to-cart and purchase from January to March 2017?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 09
+-- Product funnel analysis from product view to add-to-cart to purchase.
+-- action_type = '2': product view
+-- action_type = '3': add to cart
+-- action_type = '6': purchase
+-- ============================================================
 
-![Product Funnel Analysis Query](image/query/09_product_funnel_analysis_query.png)
+WITH product_view AS (
+  SELECT
+    FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS month,
+    COUNT(product.productSKU) AS num_product_view
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE _TABLE_SUFFIX BETWEEN '20170101' AND '20170331'
+    AND hits.eCommerceAction.action_type = '2'
+  GROUP BY 1
+),
 
-**Query Result**
+add_to_cart AS (
+  SELECT
+    FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS month,
+    COUNT(product.productSKU) AS num_addtocart
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE _TABLE_SUFFIX BETWEEN '20170101' AND '20170331'
+    AND hits.eCommerceAction.action_type = '3'
+  GROUP BY 1
+),
+
+purchase AS (
+  SELECT
+    FORMAT_DATE('%Y%m', PARSE_DATE('%Y%m%d', date)) AS month,
+    COUNT(product.productSKU) AS num_purchase
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE _TABLE_SUFFIX BETWEEN '20170101' AND '20170331'
+    AND hits.eCommerceAction.action_type = '6'
+    AND product.productRevenue IS NOT NULL
+  GROUP BY 1
+)
+
+SELECT
+  pv.month,
+  pv.num_product_view,
+  COALESCE(a.num_addtocart, 0) AS num_addtocart,
+  COALESCE(p.num_purchase, 0) AS num_purchase,
+  ROUND(SAFE_DIVIDE(COALESCE(a.num_addtocart, 0), pv.num_product_view) * 100, 2) AS add_to_cart_rate,
+  ROUND(SAFE_DIVIDE(COALESCE(p.num_purchase, 0), pv.num_product_view) * 100, 2) AS purchase_rate
+FROM product_view AS pv
+LEFT JOIN add_to_cart AS a
+USING (month)
+LEFT JOIN purchase AS p
+USING (month)
+ORDER BY pv.month;
+```
+
+**Result**
 
 ![Product Funnel Analysis Result](image/result/09_product_funnel_analysis_result.png)
 
-**Key Finding**
-
-- Funnel analysis helps identify where users drop off before completing a purchase.
+**Why it matters:**  
+Funnel analysis helps identify where users drop off before completing a purchase.
 
 ---
 
-### 🔟 Weekly Cumulative Revenue
+## Query 10 — Weekly Cumulative Revenue
 
-**Business Question:**  
+**Business question:**  
 How did weekly revenue and cumulative revenue change from May to July 2017?
 
-**SQL Query**
+```sql
+-- ============================================================
+-- Query 10
+-- Calculate weekly revenue from May to July 2017
+-- and cumulative revenue.
+-- ============================================================
 
-![Weekly Cumulative Revenue Query](image/query/10_weekly_cumulative_revenue_query.png)
+WITH raw_data AS (
+  SELECT
+    FORMAT_DATE('%Y-%W', PARSE_DATE('%Y%m%d', date)) AS week,
+    SUM(product.productRevenue) / 1000000 AS weekly_revenue
+  FROM `bigquery-public-data.google_analytics_sample.ga_sessions_2017*`,
+    UNNEST(hits) AS hits,
+    UNNEST(hits.product) AS product
+  WHERE _TABLE_SUFFIX BETWEEN '0501' AND '0731'
+    AND product.productRevenue IS NOT NULL
+  GROUP BY 1
+)
 
-**Query Result**
+SELECT
+  week,
+  ROUND(weekly_revenue, 2) AS weekly_revenue,
+  ROUND(
+    SUM(weekly_revenue) OVER (
+      ORDER BY week
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ),
+    2
+  ) AS cumulative_revenue
+FROM raw_data
+ORDER BY week;
+```
+
+**Result**
 
 ![Weekly Cumulative Revenue Result](image/result/10_weekly_cumulative_revenue_result.png)
 
-**Key Finding**
-
-- Weekly cumulative revenue helps track revenue growth momentum over time.
+**Why it matters:**  
+Cumulative revenue helps track revenue growth momentum over time.
 
 ---
-
 ## 📌 Key Insights
 
 - Website performance can be monitored through visits, pageviews, transactions, and revenue by time period.
